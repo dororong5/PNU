@@ -1,0 +1,545 @@
+# PNU
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Daily & Book Log (Seasonal)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700&display=swap');
+        
+        :root {
+            --season-bg: linear-gradient(180deg, #e0f2fe 0%, #f8fafc 100%);
+        }
+
+        body { 
+            font-family: 'Pretendard', sans-serif; 
+            -webkit-tap-highlight-color: transparent; 
+            background: var(--season-bg);
+            background-attachment: fixed;
+            min-height: 100vh;
+            color: #1e293b;
+        }
+
+        /* 봄 테마: 하늘과 구름 */
+        .theme-spring {
+            background: linear-gradient(to bottom, #87CEEB, #E0F7FA);
+            position: relative;
+            overflow-x: hidden;
+        }
+        .cloud {
+            position: fixed;
+            background: white;
+            border-radius: 100px;
+            opacity: 0.6;
+            filter: blur(20px);
+            z-index: -1;
+            animation: moveClouds 20s linear infinite;
+        }
+        @keyframes moveClouds {
+            from { transform: translateX(-150%); }
+            to { transform: translateX(150vw); }
+        }
+
+        .theme-summer { background: linear-gradient(to bottom, #f0fdf4, #dcfce7); }
+        .theme-autumn { background: linear-gradient(to bottom, #fff7ed, #ffedd5); }
+        .theme-winter { background: linear-gradient(to bottom, #f8fafc, #f1f5f9); }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.4s ease-out; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .progress-bar { transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+        ::-webkit-scrollbar { display: none; }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 2rem;
+        }
+
+        .mood-chip-item {
+            padding: 6px 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            user-select: none;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+        .mood-chip-item.selected {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border-color: rgba(0,0,0,0.1);
+            filter: saturate(1.5) brightness(0.9);
+        }
+        .mood-chip-item:not(.selected) {
+            opacity: 0.6;
+            background-color: #f1f5f9 !important;
+            color: #64748b !important;
+        }
+
+        .mood-tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body class="pb-24 theme-spring">
+    <div class="cloud w-40 h-20 top-20 left-10"></div>
+    <div class="cloud w-64 h-32 top-60 -left-20" style="animation-delay: -5s; animation-duration: 35s;"></div>
+    <div class="cloud w-52 h-24 top-1/2 left-40" style="animation-delay: -12s; animation-duration: 25s;"></div>
+
+    <header class="sticky top-0 bg-white/40 backdrop-blur-md border-b border-white/20 z-50 px-5 py-4">
+        <div class="max-w-md mx-auto flex justify-between items-center">
+            <div>
+                <h1 class="font-bold text-xl text-indigo-600 tracking-tight flex items-center gap-2">
+                    <i class="bi bi-cloud-sun"></i> MY LOG
+                </h1>
+                <p id="header-date" class="text-[10px] text-slate-500 font-medium uppercase mt-0.5 tracking-wider"></p>
+            </div>
+            <button onclick="clearAllData()" class="text-slate-400 hover:text-red-400 transition-colors">
+                <i class="bi bi-trash3 text-lg"></i>
+            </button>
+        </div>
+    </header>
+
+    <main class="max-w-md mx-auto p-5">
+        <div id="home" class="tab-content active space-y-6">
+            <div class="glass-card p-6 shadow-sm">
+                <div class="flex items-center gap-2 mb-5">
+                    <div class="w-10 h-10 bg-indigo-50/50 rounded-xl flex items-center justify-center text-indigo-600">
+                        <i class="bi bi-stars"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-bold text-lg">오늘의 기록</h2>
+                        <p class="text-xs text-slate-500">기분과 운동을 남겨보세요</p>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="space-y-1.5">
+                        <label class="text-[11px] font-bold text-slate-500 ml-1 flex justify-between">
+                            <span>오늘의 기분 (여러 개 선택 가능)</span>
+                            <span id="selected-count" class="text-indigo-600">0개 선택됨</span>
+                        </label>
+                        <div id="mood-selector" class="flex flex-wrap gap-2 max-h-52 overflow-y-auto p-2 bg-white/40 rounded-2xl border border-white/50"></div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="space-y-1.5">
+                            <label class="text-[11px] font-bold text-slate-500 ml-1">운동 종류</label>
+                            <select id="workoutType" class="w-full bg-white/60 border border-white/50 rounded-2xl p-3 text-sm focus:bg-white transition-all">
+                                <option value="안함">안함</option>
+                                <option value="걷기">걷기</option>
+                                <option value="맨몸운동">맨몸운동</option>
+                                <option value="수영">수영</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1.5">
+                            <label class="text-[11px] font-bold text-slate-500 ml-1">시간 (분)</label>
+                            <select id="workoutDuration" class="w-full bg-white/60 border border-white/50 rounded-2xl p-3 text-sm focus:bg-white transition-all">
+                                <option value="0">0분</option>
+                                <option value="5">5분</option>
+                                <option value="10">10분</option>
+                                <option value="15">15분</option>
+                                <option value="20">20분</option>
+                                <option value="30">30분</option>
+                                <option value="45">45분</option>
+                                <option value="60">1시간</option>
+                                <option value="90">1.5시간</option>
+                                <option value="120">2시간</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label class="text-[11px] font-bold text-slate-500 ml-1">메모 & 해시태그</label>
+                        <textarea id="dailyNote" rows="4" placeholder="오늘 어떤 일이 있었나요? #일기 #성장" 
+                                  class="w-full bg-white/60 border border-white/50 rounded-2xl p-4 text-sm resize-none focus:bg-white transition-all"></textarea>
+                    </div>
+
+                    <button onclick="saveDaily()" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-indigo-100 active:scale-[0.98] transition-transform">
+                        기록 저장하기
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="books" class="tab-content space-y-6">
+            <div class="flex justify-between items-center px-1">
+                <div>
+                    <h2 class="font-bold text-xl">서재</h2>
+                    <p class="text-xs text-slate-500">책을 클릭해 메모를 남기세요</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="toggleAddNote()" class="w-10 h-10 glass-card flex items-center justify-center text-indigo-600 active:scale-90 transition-all shadow-sm">
+                        <i class="bi bi-plus-lg text-lg"></i>
+                    </button>
+                    <button onclick="toggleAddBook()" class="px-4 h-10 glass-card flex items-center justify-center text-xs font-bold text-slate-600 active:scale-90 transition-all shadow-sm">
+                        책 등록
+                    </button>
+                </div>
+            </div>
+
+            <div id="add-book-form" class="hidden glass-card p-6 border border-indigo-200/50 space-y-4">
+                <h3 class="font-bold text-indigo-600 flex items-center gap-2"><i class="bi bi-plus-circle"></i> 새로운 책 등록</h3>
+                <div class="space-y-3">
+                    <input type="text" id="newTitle" placeholder="책 제목" class="w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-100 outline-none">
+                    <input type="text" id="newCat" placeholder="카테고리 (예: 인문, 소설)" class="w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-100 outline-none">
+                    <input type="number" id="newTotal" placeholder="전체 페이지" class="w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-100 outline-none">
+                    <div class="flex gap-2 pt-2">
+                        <button onclick="toggleAddBook()" class="flex-1 bg-slate-100 text-slate-500 py-3 rounded-xl text-sm font-bold">취소</button>
+                        <button onclick="addBook()" class="flex-2 bg-indigo-600 text-white py-3 rounded-xl text-sm font-bold px-8">등록</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="add-note-form" class="hidden glass-card p-6 border border-indigo-200/50 space-y-4">
+                <h3 class="font-bold text-indigo-600 flex items-center gap-2"><i class="bi bi-pencil-square"></i> 독서 메모 남기기</h3>
+                <div class="space-y-3">
+                    <select id="noteBookSelect" class="w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-100 outline-none bg-white">
+                        <option value="">책 선택...</option>
+                    </select>
+                    <div class="flex items-center gap-2 bg-white/60 rounded-xl px-3 border">
+                        <span class="text-xs font-bold text-slate-400">P.</span>
+                        <input type="number" id="notePage" placeholder="페이지" class="w-full py-3 text-sm focus:outline-none bg-transparent">
+                    </div>
+                    <textarea id="quickBookNote" rows="3" placeholder="기억하고 싶은 문구..." class="w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-100 outline-none resize-none"></textarea>
+                    <div class="flex gap-2">
+                        <button onclick="toggleAddNote()" class="flex-1 bg-slate-100 text-slate-500 py-3 rounded-xl text-sm font-bold">취소</button>
+                        <button onclick="addQuickNote()" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl text-sm font-bold">메모 저장</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="book-list" class="space-y-4"></div>
+        </div>
+
+        <div id="archive" class="tab-content space-y-6">
+            <div class="px-1">
+                <h2 class="font-bold text-xl">기록 보관소</h2>
+                <p class="text-xs text-slate-500">지난 날의 기록들</p>
+            </div>
+            <div id="history-list" class="space-y-4 pb-10"></div>
+        </div>
+    </main>
+
+    <nav class="fixed bottom-0 left-0 right-0 bg-white/60 backdrop-blur-xl border-t border-white/20 pb-8 pt-3 z-50">
+        <div class="max-w-md mx-auto flex justify-around items-center">
+            <button onclick="showTab('home')" class="nav-item flex flex-col items-center gap-1 text-indigo-600" id="nav-home">
+                <div class="p-1"><i class="bi bi-house-door-fill text-2xl"></i></div>
+                <span class="text-[10px] font-bold">홈</span>
+            </button>
+            <button onclick="showTab('books')" class="nav-item flex flex-col items-center gap-1 text-slate-400" id="nav-books">
+                <div class="p-1"><i class="bi bi-book-half text-2xl"></i></div>
+                <span class="text-[10px] font-bold">서재</span>
+            </button>
+            <button onclick="showTab('archive')" class="nav-item flex flex-col items-center gap-1 text-slate-400" id="nav-archive">
+                <div class="p-1"><i class="bi bi-collection-fill text-2xl"></i></div>
+                <span class="text-[10px] font-bold">아카이브</span>
+            </button>
+        </div>
+    </nav>
+
+    <script>
+        let books = JSON.parse(localStorage.getItem('myBooks')) || [];
+        let logs = JSON.parse(localStorage.getItem('myDailyLogs')) || [];
+        let selectedMoods = [];
+
+        const moodColors = {
+            '행복': { bg: 'bg-yellow-100', text: 'text-yellow-700' },
+            '설렘': { bg: 'bg-orange-100', text: 'text-orange-700' },
+            '감사': { bg: 'bg-amber-100', text: 'text-amber-700' },
+            '활기': { bg: 'bg-yellow-200', text: 'text-yellow-800' },
+            '신남': { bg: 'bg-orange-200', text: 'text-orange-800' },
+            '열정': { bg: 'bg-red-100', text: 'text-red-700' },
+            '평온': { bg: 'bg-green-100', text: 'text-green-700' },
+            '만족': { bg: 'bg-emerald-100', text: 'text-emerald-700' },
+            '뿌듯': { bg: 'bg-lime-100', text: 'text-lime-700' },
+            '편안': { bg: 'bg-green-50', text: 'text-green-600' },
+            '안도': { bg: 'bg-teal-100', text: 'text-teal-700' },
+            '긍정': { bg: 'bg-emerald-50', text: 'text-emerald-600' },
+            '보통': { bg: 'bg-slate-100', text: 'text-slate-600' },
+            '차분': { bg: 'bg-slate-200', text: 'text-slate-700' },
+            '덤덤': { bg: 'bg-gray-100', text: 'text-gray-600' },
+            '멍함': { bg: 'bg-zinc-100', text: 'text-zinc-600' },
+            '바쁨': { bg: 'bg-blue-50', text: 'text-blue-500' },
+            '고요': { bg: 'bg-slate-50', text: 'text-slate-500' },
+            '피곤': { bg: 'bg-indigo-50', text: 'text-indigo-400' },
+            '졸림': { bg: 'bg-violet-50', text: 'text-violet-400' },
+            '우울': { bg: 'bg-blue-100', text: 'text-blue-700' },
+            '슬픔': { bg: 'bg-indigo-100', text: 'text-indigo-700' },
+            '무기력': { bg: 'bg-slate-200', text: 'text-slate-500' },
+            '외로움': { bg: 'bg-purple-100', text: 'text-purple-700' },
+            '불안': { bg: 'bg-rose-50', text: 'text-rose-500' },
+            '긴장': { bg: 'bg-orange-50', text: 'text-orange-600' },
+            '예민': { bg: 'bg-red-50', text: 'text-red-500' },
+            '짜증': { bg: 'bg-rose-100', text: 'text-rose-700' },
+            '답답': { bg: 'bg-stone-200', text: 'text-stone-700' },
+            '허탈': { bg: 'bg-gray-200', text: 'text-gray-500' }
+        };
+
+        const moodCategories = {
+            '✨ 기쁨 & 활기': ['행복', '설렘', '감사', '활기', '신남', '열정'],
+            '🌱 평온 & 만족': ['평온', '만족', '뿌듯', '편안', '안도', '긍정'],
+            '☁️ 보통 & 차분': ['보통', '차분', '덤덤', '멍함', '바쁨', '고요'],
+            '💧 피로 & 우울': ['피곤', '졸림', '우울', '슬픔', '무기력', '외로움'],
+            '🔥 긴장 & 예민': ['불안', '긴장', '예민', '짜증', '답답', '허탈']
+        };
+
+        window.onload = () => {
+            renderMoodSelector();
+            renderBooks();
+            renderArchive();
+            setSeason();
+            document.getElementById('header-date').innerText = new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
+        };
+
+        function setSeason() {
+            const month = new Date().getMonth() + 1;
+            document.body.className = "pb-24 " + (month >= 3 && month <= 5 ? 'theme-spring' : (month >= 6 && month <= 8 ? 'theme-summer' : (month >= 9 && month <= 11 ? 'theme-autumn' : 'theme-winter')));
+        }
+
+        function renderMoodSelector() {
+            const selector = document.getElementById('mood-selector');
+            selector.innerHTML = '';
+            Object.entries(moodCategories).forEach(([category, moods]) => {
+                const groupTitle = document.createElement('div');
+                groupTitle.className = 'w-full text-[10px] font-bold text-slate-400 mt-2 mb-1 px-1';
+                groupTitle.innerText = category;
+                selector.appendChild(groupTitle);
+                moods.forEach(mood => {
+                    const color = moodColors[mood];
+                    const chip = document.createElement('div');
+                    const isSelected = selectedMoods.includes(mood);
+                    chip.className = `mood-chip-item cursor-pointer ${color.bg} ${color.text} ${isSelected ? 'selected' : ''}`;
+                    chip.innerText = mood;
+                    chip.onclick = () => toggleMood(mood);
+                    selector.appendChild(chip);
+                });
+            });
+        }
+
+        function toggleMood(mood) {
+            const index = selectedMoods.indexOf(mood);
+            if (index > -1) selectedMoods.splice(index, 1);
+            else selectedMoods.push(mood);
+            document.getElementById('selected-count').innerText = `${selectedMoods.length}개 선택됨`;
+            renderMoodSelector();
+        }
+
+        function showTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(el => {
+                el.classList.remove('text-indigo-600');
+                el.classList.add('text-slate-400');
+            });
+            document.getElementById('nav-' + tabId).classList.add('text-indigo-600');
+            document.getElementById('nav-' + tabId).classList.remove('text-slate-400');
+            if(tabId === 'books') renderBooks();
+            if(tabId === 'archive') renderArchive();
+        }
+
+        function toggleAddBook() { 
+            document.getElementById('add-book-form').classList.toggle('hidden'); 
+            document.getElementById('add-note-form').classList.add('hidden');
+        }
+
+        function toggleAddNote(targetBookId = null) {
+            const form = document.getElementById('add-note-form');
+            form.classList.toggle('hidden');
+            document.getElementById('add-book-form').classList.add('hidden');
+            
+            const select = document.getElementById('noteBookSelect');
+            select.innerHTML = '<option value="">책 선택...</option>' + 
+                books.map(b => `<option value="${b.id}" ${b.id == targetBookId ? 'selected' : ''}>${b.title}</option>`).join('');
+        }
+
+        function addBook() {
+            const title = document.getElementById('newTitle').value;
+            const cat = document.getElementById('newCat').value || '미분류';
+            const total = parseInt(document.getElementById('newTotal').value);
+            if(!title || isNaN(total)) { showMessage("제목과 페이지를 입력하세요."); return; }
+            books.push({ id: Date.now(), title, category: cat, total, current: 0, notes: [] });
+            saveData();
+            renderBooks();
+            toggleAddBook();
+            document.getElementById('newTitle').value = "";
+            document.getElementById('newCat').value = "";
+            document.getElementById('newTotal').value = "";
+        }
+
+        function addQuickNote() {
+            const bookId = document.getElementById('noteBookSelect').value;
+            const pageInput = document.getElementById('notePage').value;
+            const text = document.getElementById('quickBookNote').value;
+            if(!bookId || !text.trim()) { showMessage("책을 선택하고 메모를 작성하세요."); return; }
+            
+            const book = books.find(b => b.id == bookId);
+            if(book) {
+                if(!book.notes) book.notes = [];
+                
+                const pageNum = parseInt(pageInput) || 0;
+                
+                book.notes.push({ 
+                    id: Date.now(), 
+                    date: new Date().toLocaleDateString(), 
+                    page: pageNum || '?',
+                    text: text 
+                });
+
+                // 메모에 입력된 페이지가 현재 진행 상황보다 크면 자동으로 업데이트
+                if (pageNum > book.current) {
+                    book.current = Math.min(pageNum, book.total);
+                }
+
+                saveData();
+                renderBooks();
+                toggleAddNote();
+                document.getElementById('notePage').value = "";
+                document.getElementById('quickBookNote').value = "";
+                showMessage("메모가 저장되었습니다.");
+            }
+        }
+
+        function updateProgress(id, val) {
+            const book = books.find(b => b.id === id);
+            if(book) {
+                book.current = Math.min(Math.max(0, parseInt(val) || 0), book.total);
+                saveData();
+                renderBooks();
+            }
+        }
+
+        function deleteBook(id) {
+            if(confirm("이 책의 모든 기록을 삭제할까요?")) {
+                books = books.filter(b => b.id !== id);
+                saveData();
+                renderBooks();
+            }
+        }
+
+        function renderBooks() {
+            const list = document.getElementById('book-list');
+            if(books.length === 0) {
+                list.innerHTML = `<div class="text-center py-12 glass-card border-dashed border-slate-300">
+                    <i class="bi bi-book text-3xl text-slate-300 mb-3 block"></i><p class="text-sm text-slate-500">등록된 책이 없습니다.</p></div>`;
+                return;
+            }
+            list.innerHTML = books.map(book => {
+                const percent = Math.min(Math.floor((book.current / book.total) * 100), 100);
+                const lastNoteObj = (book.notes && book.notes.length > 0) ? book.notes[book.notes.length-1] : null;
+                const latestNoteText = lastNoteObj ? `(p.${lastNoteObj.page}) ${lastNoteObj.text}` : "메모를 남겨보세요";
+                
+                return `
+                <div class="glass-card overflow-hidden shadow-sm active:scale-[0.99] transition-all">
+                    <div class="p-6 space-y-4" onclick="toggleAddNote(${book.id})">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <span class="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-1 rounded-lg uppercase">${book.category}</span>
+                                <h3 class="font-bold text-slate-800 mt-2 line-clamp-1">${book.title}</h3>
+                            </div>
+                            <button onclick="event.stopPropagation(); deleteBook(${book.id})" class="text-slate-300 hover:text-red-400 p-1"><i class="bi bi-x-lg"></i></button>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="flex justify-between items-end">
+                                <div class="flex items-center gap-2" onclick="event.stopPropagation()">
+                                    <input type="number" value="${book.current}" onchange="updateProgress(${book.id}, this.value)" 
+                                        class="w-14 bg-white/80 border border-slate-100 rounded-lg py-1 text-center text-xs font-bold focus:ring-1 focus:ring-indigo-500">
+                                    <span class="text-[10px] text-slate-400 font-medium">/ ${book.total} P</span>
+                                </div>
+                                <span class="text-sm font-bold text-indigo-600">${percent}%</span>
+                            </div>
+                            <div class="w-full bg-slate-200/50 h-2.5 rounded-full overflow-hidden">
+                                <div class="bg-indigo-500 h-full progress-bar" style="width: ${percent}%"></div>
+                            </div>
+                        </div>
+                        <div class="bg-indigo-50/50 rounded-2xl p-4 border border-indigo-100/50">
+                            <p class="text-[11px] font-bold text-indigo-400 mb-1 uppercase tracking-wider">Latest Note</p>
+                            <p class="text-xs text-slate-600 line-clamp-2 italic leading-relaxed">"${latestNoteText}"</p>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function saveDaily() {
+            const wType = document.getElementById('workoutType').value;
+            const wTime = document.getElementById('workoutDuration').value;
+            const note = document.getElementById('dailyNote').value;
+            if(selectedMoods.length === 0 && !note.trim() && wType === "안함") { showMessage("기록할 내용을 입력하세요."); return; }
+            
+            logs.unshift({ 
+                id: Date.now(), 
+                date: new Date().toLocaleDateString(), 
+                moods: [...selectedMoods], 
+                workout: wType !== "안함" ? { type: wType, time: wTime } : null, 
+                note 
+            });
+            localStorage.setItem('myDailyLogs', JSON.stringify(logs));
+            
+            selectedMoods = [];
+            document.getElementById('selected-count').innerText = "0개 선택됨";
+            renderMoodSelector();
+            document.getElementById('dailyNote').value = "";
+            showMessage("오늘의 기록이 저장되었습니다.");
+        }
+
+        function renderArchive() {
+            const list = document.getElementById('history-list');
+            if(logs.length === 0) {
+                list.innerHTML = `<div class="text-center py-12"><p class="text-sm text-slate-500">저장된 기록이 없습니다.</p></div>`;
+                return;
+            }
+            list.innerHTML = logs.map(log => {
+                const formattedNote = log.note.replace(/#(\S+)/g, '<span class="text-indigo-600 font-bold">#$1</span>');
+                const moodTags = (log.moods || []).map(m => {
+                    const mColor = moodColors[m] || moodColors['보통'];
+                    return `<span class="mood-tag ${mColor.bg} ${mColor.text} mr-1 mb-1">${m}</span>`;
+                }).join('');
+                
+                let workoutBadge = log.workout ? `<div class="flex items-center gap-2 bg-white/60 w-fit px-3 py-1.5 rounded-full border border-white/40 mt-3">
+                        <i class="bi bi-fire text-orange-500 text-xs"></i>
+                        <span class="text-[10px] font-bold text-slate-600">${log.workout.type} ${log.workout.time}분</span>
+                    </div>` : "";
+
+                return `<div class="glass-card p-5 border-white/50 shadow-sm space-y-3">
+                    <div class="flex flex-col gap-2 border-b border-white/20 pb-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-[11px] font-bold text-slate-800">${log.date}</span>
+                            <button onclick="deleteLog(${log.id})" class="text-slate-300 hover:text-red-400"><i class="bi bi-trash text-sm"></i></button>
+                        </div>
+                        <div class="flex flex-wrap">${moodTags}</div>
+                    </div>
+                    <p class="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">${formattedNote}</p>
+                    ${workoutBadge}
+                </div>`;
+            }).join('');
+        }
+
+        function deleteLog(id) { if(confirm("삭제할까요?")) { logs = logs.filter(l => l.id !== id); localStorage.setItem('myDailyLogs', JSON.stringify(logs)); renderArchive(); } }
+        function saveData() { localStorage.setItem('myBooks', JSON.stringify(books)); }
+        function clearAllData() { if(confirm("모든 데이터를 초기화할까요?")) { localStorage.clear(); location.reload(); } }
+        function showMessage(msg) {
+            const alertBox = document.createElement('div');
+            alertBox.className = "fixed top-20 left-1/2 -translate-x-1/2 bg-slate-800/90 backdrop-blur text-white text-xs px-6 py-3 rounded-full shadow-2xl z-[100] animate-bounce text-center";
+            alertBox.innerText = msg;
+            document.body.appendChild(alertBox);
+            setTimeout(() => alertBox.remove(), 2500);
+        }
+    </script>
+</body>
+</html>
