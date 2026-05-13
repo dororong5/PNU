@@ -206,6 +206,29 @@
                 </div>
             </div>
 
+            <div id="edit-book-form" class="hidden glass-card p-6 border border-orange-200/50 space-y-4">
+                <h3 class="font-bold text-orange-600 flex items-center gap-2"><i class="bi bi-pencil-fill"></i> 책 정보 수정</h3>
+                <input type="hidden" id="editBookId">
+                <div class="space-y-3">
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-slate-400 ml-1">제목</label>
+                        <input type="text" id="editTitle" class="w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-orange-100 outline-none">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-slate-400 ml-1">카테고리</label>
+                        <input type="text" id="editCat" class="w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-orange-100 outline-none">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-slate-400 ml-1">전체 페이지</label>
+                        <input type="number" id="editTotal" class="w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-orange-100 outline-none">
+                    </div>
+                    <div class="flex gap-2 pt-2">
+                        <button onclick="toggleEditBook()" class="flex-1 bg-slate-100 text-slate-500 py-3 rounded-xl text-sm font-bold">취소</button>
+                        <button onclick="updateBookInfo()" class="flex-2 bg-orange-500 text-white py-3 rounded-xl text-sm font-bold px-8">수정 완료</button>
+                    </div>
+                </div>
+            </div>
+
             <div id="add-note-form" class="hidden glass-card p-6 border border-indigo-200/50 space-y-4">
                 <h3 class="font-bold text-indigo-600 flex items-center gap-2"><i class="bi bi-pencil-square"></i> 독서 메모 남기기</h3>
                 <div class="space-y-3">
@@ -356,12 +379,59 @@
         function toggleAddBook() { 
             document.getElementById('add-book-form').classList.toggle('hidden'); 
             document.getElementById('add-note-form').classList.add('hidden');
+            document.getElementById('edit-book-form').classList.add('hidden');
+        }
+
+        function toggleEditBook(id = null) {
+            const form = document.getElementById('edit-book-form');
+            if (!id) {
+                form.classList.add('hidden');
+                return;
+            }
+
+            const book = books.find(b => b.id === id);
+            if (book) {
+                document.getElementById('editBookId').value = book.id;
+                document.getElementById('editTitle').value = book.title;
+                document.getElementById('editCat').value = book.category;
+                document.getElementById('editTotal').value = book.total;
+                
+                form.classList.remove('hidden');
+                document.getElementById('add-book-form').classList.add('hidden');
+                document.getElementById('add-note-form').classList.add('hidden');
+                // 폼으로 스크롤 이동
+                form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        function updateBookInfo() {
+            const id = parseInt(document.getElementById('editBookId').value);
+            const title = document.getElementById('editTitle').value;
+            const cat = document.getElementById('editCat').value || '미분류';
+            const total = parseInt(document.getElementById('editTotal').value);
+
+            if(!title || isNaN(total)) { showMessage("제목과 페이지를 입력하세요."); return; }
+
+            const index = books.findIndex(b => b.id === id);
+            if (index !== -1) {
+                books[index].title = title;
+                books[index].category = cat;
+                books[index].total = total;
+                // 현재 페이지가 전체 페이지보다 커지지 않게 조정
+                if (books[index].current > total) books[index].current = total;
+
+                saveData();
+                renderBooks();
+                toggleEditBook();
+                showMessage("책 정보가 수정되었습니다.");
+            }
         }
 
         function toggleAddNote(targetBookId = null) {
             const form = document.getElementById('add-note-form');
             form.classList.toggle('hidden');
             document.getElementById('add-book-form').classList.add('hidden');
+            document.getElementById('edit-book-form').classList.add('hidden');
             
             const select = document.getElementById('noteBookSelect');
             select.innerHTML = '<option value="">책 선택...</option>' + 
@@ -452,19 +522,13 @@
                                 <span class="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-1 rounded-lg uppercase">${book.category}</span>
                                 <h3 class="font-bold text-slate-800 mt-2 line-clamp-1">${book.title}</h3>
                             </div>
-                            <button onclick="event.stopPropagation(); deleteBook(${book.id})" class="text-slate-300 hover:text-red-400 p-1"><i class="bi bi-x-lg"></i></button>
-                        </div>
-                        <div class="space-y-2">
-                            <div class="flex justify-between items-end">
-                                <div class="flex items-center gap-2" onclick="event.stopPropagation()">
-                                    <input type="number" value="${book.current}" onchange="updateProgress(${book.id}, this.value)" 
-                                        class="w-14 bg-white/80 border border-slate-100 rounded-lg py-1 text-center text-xs font-bold focus:ring-1 focus:ring-indigo-500">
-                                    <span class="text-[10px] text-slate-400 font-medium">/ ${book.total} P</span>
-                                </div>
-                                <span class="text-sm font-bold text-indigo-600">${percent}%</span>
-                            </div>
-                            <div class="w-full bg-slate-200/50 h-2.5 rounded-full overflow-hidden">
-                                <div class="bg-indigo-500 h-full progress-bar" style="width: ${percent}%"></div>
+                            <div class="flex gap-2">
+                                <button onclick="event.stopPropagation(); toggleEditBook(${book.id})" class="text-slate-300 hover:text-orange-400 p-1 transition-colors">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+                                <button onclick="event.stopPropagation(); deleteBook(${book.id})" class="text-slate-300 hover:text-red-400 p-1 transition-colors">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
                             </div>
                         </div>
                         <div class="bg-indigo-50/50 rounded-2xl p-4 border border-indigo-100/50">
